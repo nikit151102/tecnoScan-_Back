@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from database.database_app import engine_a
 from models_db.models_request import User
 from sqlalchemy.ext.asyncio import AsyncSession
-from ..criptoPassword import decrypt, encrypt,secretKey
+from ..criptoPassword import decrypt, encrypt
 from ..randomPassword import generate_temp_password
 from sqlalchemy.future import select
 from .setModels import ConnectModel, registrationModel
@@ -49,7 +49,7 @@ async def connection(request: ConnectModel):
                     "login": client.login
                 }
 
-                token_client = jwt.encode(payload_client, secretKey, algorithm="HS256")
+                token_client = jwt.encode(payload_client, "1e9cb1ff6950647229010fb1af7d932ba0e33f15688c59dd2e6252ab4a7e96e9", algorithm="HS256")
 
                 return JSONResponse(
                     content={
@@ -120,7 +120,7 @@ async def create(request: registrationModel):
                 "middlename": New_user.middlename,
                 "phone": New_user.phone,
             }
-            token = jwt.encode(token_data, secretKey, algorithm="HS256")
+            token = jwt.encode(token_data, "1e9cb1ff6950647229010fb1af7d932ba0e33f15688c59dd2e6252ab4a7e96e9", algorithm="HS256")
 
             return JSONResponse(
                 content={
@@ -142,7 +142,7 @@ from fastapi.security import OAuth2PasswordBearer
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-@personal_account.get("/personal_account/user")
+@personal_account.get("/user")
 async def get_user_data(token: str = Depends(oauth2_scheme)):
     try:
         # Расшифровка токена
@@ -189,23 +189,13 @@ async def get_user_data(token: str = Depends(oauth2_scheme)):
 
 from fastapi import Depends
 
-@personal_account.get("/debug/token")
-async def debug_token(token: str = Depends(oauth2_scheme)):
-    return {"received_token": token}
-
-
 # Удаление пользователя
 @personal_account.delete("/user")
 async def delete_user(token: str = Depends(oauth2_scheme)):
-    
-    if not token:
-        return JSONResponse(
-            content={"code": 401, "message": "Токен авторизации обязателен."}, status_code=401
-        )
-
     try:
         decoded_token = decryptToken(token)
-        user_id = decoded_token.get("user_id")
+        
+        user_id = decoded_token.get("id")
 
         async with AsyncSession(engine_a) as session:
             user = await session.execute(select(User).filter(User.id == user_id))
@@ -239,8 +229,7 @@ async def update_user(request: UpdateUserModel, Authorization: str = Header(None
 
     try:
         decoded_token = decryptToken(Authorization)
-        user_id = decoded_token.get("user_id")
-
+        user_id = decoded_token.get("id")
         async with AsyncSession(engine_a) as session:
             user = await session.execute(select(User).filter(User.id == user_id))
             user = user.scalar()
